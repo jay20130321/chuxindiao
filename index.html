@@ -34,11 +34,9 @@ body {
 	justify-content: center;
 	align-items: center;
 	visibility: hidden;
-	background:
-		radial-gradient(ellipse 80% 42% at 50% 18%, rgba(212, 168, 75, 0.16), transparent 60%),
-		linear-gradient(180deg, #102033 0%, #0b1824 42%, #07141c 58%, #041016 100%);
+	background: #071018;
 	overflow: hidden;
-	font-family: "Songti SC", "STSong", "PingFang SC", serif;
+	font-family: "PingFang SC", "Noto Sans SC", sans-serif;
 }
 
 #status-splash,
@@ -50,133 +48,8 @@ body {
 	pointer-events: none;
 }
 
-#load-scene {
-	position: relative;
-	width: min(420px, 88vw);
-	height: 280px;
-	margin-bottom: 1.2rem;
-}
-
-.moon {
-	position: absolute;
-	right: 14%;
-	top: 8px;
-	width: 54px;
-	height: 54px;
-	border-radius: 50%;
-	background: radial-gradient(circle at 35% 35%, #fff6d8, #e6c56a 55%, #b8893a);
-	box-shadow: 0 0 40px rgba(230, 197, 106, 0.45);
-}
-
-.moon::after {
-	content: "";
-	position: absolute;
-	left: 16px;
-	top: -6px;
-	width: 46px;
-	height: 46px;
-	border-radius: 50%;
-	background: #102033;
-}
-
-.water {
-	position: absolute;
-	left: 0;
-	right: 0;
-	bottom: 18px;
-	height: 92px;
-	border-radius: 50%;
-	background: radial-gradient(ellipse at center, rgba(36, 92, 112, 0.55), rgba(8, 24, 34, 0.1) 70%);
-}
-
-.ripple {
-	position: absolute;
-	left: 50%;
-	top: 50%;
-	width: 18px;
-	height: 8px;
-	margin: -4px 0 0 -9px;
-	border: 1.5px solid rgba(212, 184, 122, 0.7);
-	border-radius: 50%;
-	animation: ripple 2.8s ease-out infinite;
-}
-
-.ripple.r2 { animation-delay: 0.9s; }
-.ripple.r3 { animation-delay: 1.8s; }
-
-.rod {
-	position: absolute;
-	left: 18%;
-	top: 36px;
-	width: 180px;
-	height: 150px;
-	transform-origin: 0 0;
-	animation: sway 3.6s ease-in-out infinite;
-}
-
-.rod .blank {
-	position: absolute;
-	left: 0;
-	top: 18px;
-	width: 150px;
-	height: 3px;
-	border-radius: 2px;
-	background: linear-gradient(90deg, #6a4a2a, #d7c4a2);
-	transform: rotate(18deg);
-	transform-origin: left center;
-}
-
-.line {
-	position: absolute;
-	left: 142px;
-	top: 62px;
-	width: 1.5px;
-	height: 92px;
-	background: linear-gradient(#f2e2b8, rgba(242, 226, 184, 0.15));
-}
-
-.bobber {
-	position: absolute;
-	left: 134px;
-	top: 146px;
-	width: 16px;
-	height: 22px;
-	border-radius: 8px 8px 8px 8px;
-	background: linear-gradient(#f4f4f4 0 46%, #c4523a 46% 100%);
-	box-shadow: 0 6px 10px rgba(0, 0, 0, 0.35);
-	animation: bob 1.6s ease-in-out infinite;
-}
-
-.bobber::before {
-	content: "";
-	position: absolute;
-	left: 6px;
-	top: -8px;
-	width: 2px;
-	height: 8px;
-	background: #f2e2b8;
-}
-
 #load-copy {
 	text-align: center;
-	z-index: 1;
-}
-
-#load-copy h1 {
-	margin: 0;
-	font-size: 2.4rem;
-	font-weight: 500;
-	letter-spacing: 0.42em;
-	color: #f0d48a;
-	text-indent: 0.42em;
-}
-
-#load-copy p {
-	margin: 0.35rem 0 1.1rem;
-	letter-spacing: 0.62em;
-	text-indent: 0.62em;
-	font-size: 0.82rem;
-	color: rgba(232, 220, 196, 0.72);
 }
 
 .track {
@@ -196,7 +69,6 @@ body {
 
 #load-bar.indeterminate {
 	width: 35%;
-	animation: slide 1.4s ease-in-out infinite;
 }
 
 #load-pct {
@@ -222,25 +94,6 @@ body {
 	max-width: 28rem;
 }
 
-@keyframes ripple {
-	0% { transform: scale(1); opacity: 0.75; }
-	100% { transform: scale(8); opacity: 0; }
-}
-
-@keyframes bob {
-	0%, 100% { transform: translateY(0); }
-	50% { transform: translateY(7px); }
-}
-
-@keyframes sway {
-	0%, 100% { transform: rotate(-1.5deg); }
-	50% { transform: rotate(1.5deg); }
-}
-
-@keyframes slide {
-	0% { transform: translateX(-120%); }
-	100% { transform: translateX(320%); }
-}
 		</style>
 		<link id="-gd-engine-icon" rel="icon" type="image/png" href="index.icon.png" />
 <link rel="apple-touch-icon" href="index.apple-touch-icon.png"/>
@@ -257,24 +110,9 @@ body {
 
 		<div id="status">
 			<img id="status-splash" class="show-image--false fullsize--true use-filter--true" src="index.png" alt="">
-			<div id="load-scene" aria-hidden="true">
-				<div class="moon"></div>
-				<div class="rod">
-					<div class="blank"></div>
-					<div class="line"></div>
-					<div class="bobber"></div>
-				</div>
-				<div class="water">
-					<div class="ripple"></div>
-					<div class="ripple r2"></div>
-					<div class="ripple r3"></div>
-				</div>
-			</div>
 			<div id="load-copy">
-				<h1>楚新钓</h1>
-				<p>万钧江湖</p>
 				<div class="track"><div id="load-bar" class="indeterminate"></div></div>
-				<div id="load-pct">落竿入水…</div>
+				<div id="load-pct">加载中…</div>
 			</div>
 			<progress id="status-progress"></progress>
 			<div id="status-notice"></div>
@@ -282,7 +120,7 @@ body {
 
 		<script src="index.js"></script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":true,"fileSizes":{"index.pck":52213400,"index.wasm":37685705},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":true,"fileSizes":{"index.pck":52213624,"index.wasm":37685705},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
 const GODOT_THREADS_ENABLED = false;
 const engine = new Engine(GODOT_CONFIG);
 
@@ -295,6 +133,30 @@ const engine = new Engine(GODOT_CONFIG);
 
 	let initializing = true;
 	let statusMode = '';
+	let engineReady = false;
+	let serverReady = false;
+
+	function maybeHide() {
+		if (engineReady && serverReady) {
+			setStatusMode('hidden');
+		}
+	}
+
+	window.chuxindiaoSetLoad = function (text) {
+		if (!initializing || !loadPct) {
+			return;
+		}
+		loadPct.textContent = text || '加载中…';
+	};
+
+	window.chuxindiaoFinishLoad = function () {
+		serverReady = true;
+		if (loadBar) {
+			loadBar.classList.remove('indeterminate');
+			loadBar.style.width = '100%';
+		}
+		maybeHide();
+	};
 
 	function setStatusMode(mode) {
 		if (statusMode === mode || !initializing) {
@@ -376,16 +238,20 @@ const engine = new Engine(GODOT_CONFIG);
 					const p = Math.max(0, Math.min(100, Math.round(current / total * 100)));
 					loadBar.classList.remove('indeterminate');
 					loadBar.style.width = p + '%';
-					loadPct.textContent = '入江湖 ' + p + '%';
+					loadPct.textContent = '加载中 ' + p + '%';
 				} else {
 					statusProgress.removeAttribute('value');
 					statusProgress.removeAttribute('max');
 					loadBar.classList.add('indeterminate');
-					loadPct.textContent = '落竿入水…';
+					loadPct.textContent = '加载中…';
 				}
 			},
 		}).then(() => {
-			setStatusMode('hidden');
+			engineReady = true;
+			if (!serverReady && loadPct) {
+				loadPct.textContent = '正在连接服务器…';
+			}
+			maybeHide();
 		}, displayFailureNotice);
 	}
 }());
