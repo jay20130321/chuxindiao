@@ -120,7 +120,7 @@ body {
 
 		<script src="index.js"></script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":true,"fileSizes":{"index.wasm":37685705,"pack-20261004105609.pck":45690784},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"pack-20261004105609.pck"};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":true,"fileSizes":{"index.wasm":37685705,"pack-20261005163542.pck":45690784},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"pack-20261005163542.pck"};
 const GODOT_THREADS_ENABLED = false;
 const engine = new Engine(GODOT_CONFIG);
 
@@ -135,9 +135,11 @@ const engine = new Engine(GODOT_CONFIG);
 	let statusMode = '';
 	let engineReady = false;
 	let serverReady = false;
+	let sawFull = false;
+	let stallTimer = 0;
 
 	function maybeHide() {
-		if (engineReady && serverReady) {
+		if (engineReady || serverReady) {
 			setStatusMode('hidden');
 		}
 	}
@@ -157,6 +159,19 @@ const engine = new Engine(GODOT_CONFIG);
 		}
 		maybeHide();
 	};
+
+	function armStallWatch() {
+		if (stallTimer) {
+			return;
+		}
+		stallTimer = window.setTimeout(function () {
+			if (!initializing) {
+				return;
+			}
+			setStatusNotice('下载已完成，但游戏没有启动。\n请用 Chrome 打开，或关掉此页后重新进入。\n手机请尽量关闭其他应用后再试。');
+			setStatusMode('notice');
+		}, 70000);
+	}
 
 	function setStatusMode(mode) {
 		if (statusMode === mode || !initializing) {
@@ -238,7 +253,13 @@ const engine = new Engine(GODOT_CONFIG);
 					const p = Math.max(0, Math.min(100, Math.round(current / total * 100)));
 					loadBar.classList.remove('indeterminate');
 					loadBar.style.width = p + '%';
-					loadPct.textContent = '加载中 ' + p + '%';
+					if (p >= 100) {
+						sawFull = true;
+						loadPct.textContent = '正在启动…';
+						armStallWatch();
+					} else {
+						loadPct.textContent = '加载中 ' + p + '%';
+					}
 				} else {
 					statusProgress.removeAttribute('value');
 					statusProgress.removeAttribute('max');
@@ -248,8 +269,8 @@ const engine = new Engine(GODOT_CONFIG);
 			},
 		}).then(() => {
 			engineReady = true;
-			if (!serverReady && loadPct) {
-				loadPct.textContent = '正在连接服务器…';
+			if (stallTimer) {
+				window.clearTimeout(stallTimer);
 			}
 			maybeHide();
 		}, displayFailureNotice);
