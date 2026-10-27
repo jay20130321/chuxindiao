@@ -7,7 +7,7 @@
 		<script>
 		!function(){
 			// 只改地址栏展示用，绝不 location.replace 互踢。真正用哪个 pack 由下方 version.json 决定。
-			var baked="20261026212052";
+			var baked="20261027151745";
 			function syncV(v){
 				if(!v||v.charAt(0)==="$")return;
 				try{
@@ -134,6 +134,70 @@ body {
 	max-width: 28rem;
 }
 
+/* 手机打字：盖在 canvas 上的原生输入（iOS 需 font-size≥16px 才会弹键盘） */
+#cxd-input-overlay {
+	display: none;
+	position: fixed;
+	inset: 0;
+	z-index: 2147483646;
+	background: rgba(5, 12, 18, 0.78);
+	align-items: flex-start;
+	justify-content: center;
+	padding: 12vw 4vw 4vw;
+	box-sizing: border-box;
+	-webkit-user-select: text;
+	user-select: text;
+	touch-action: manipulation;
+	pointer-events: auto;
+}
+#cxd-input-overlay.open { display: flex; }
+#cxd-input-card {
+	width: min(92vw, 420px);
+	background: #12202a;
+	border: 1px solid rgba(212, 168, 75, 0.55);
+	border-radius: 14px;
+	padding: 16px;
+	font-family: "PingFang SC", "Noto Sans SC", sans-serif;
+	color: #f4efe4;
+	box-shadow: 0 12px 40px rgba(0,0,0,.45);
+}
+#cxd-input-title {
+	font-size: 17px;
+	margin: 0 0 12px;
+	line-height: 1.35;
+}
+#cxd-input-field {
+	display: block;
+	width: 100%;
+	box-sizing: border-box;
+	font-size: 18px !important;
+	line-height: 1.4;
+	padding: 14px 12px;
+	border-radius: 10px;
+	border: 1px solid #4a5a66;
+	background: #0b151c;
+	color: #fff;
+	outline: none;
+	-webkit-user-select: text;
+	user-select: text;
+	touch-action: manipulation;
+}
+#cxd-input-actions {
+	display: flex;
+	gap: 10px;
+	margin-top: 14px;
+}
+#cxd-input-actions button {
+	flex: 1;
+	padding: 14px 10px;
+	font-size: 17px;
+	border: 0;
+	border-radius: 10px;
+	cursor: pointer;
+}
+#cxd-input-ok { background: #d4a84b; color: #1a1208; font-weight: 600; }
+#cxd-input-cancel { background: #2a3a44; color: #f4efe4; }
+
 		</style>
 		<link id="-gd-engine-icon" rel="icon" type="image/png" href="index.icon.png" />
 <link rel="apple-touch-icon" href="index.apple-touch-icon.png"/>
@@ -158,9 +222,92 @@ body {
 			<div id="status-notice"></div>
 		</div>
 
-		<script src="index.js?v=20261026212052"></script>
+		<div id="cxd-input-overlay" aria-hidden="true">
+			<div id="cxd-input-card">
+				<div id="cxd-input-title">请输入</div>
+				<input id="cxd-input-field" type="text" autocomplete="username" enterkeyhint="done" />
+				<div id="cxd-input-actions">
+					<button type="button" id="cxd-input-ok">确定</button>
+					<button type="button" id="cxd-input-cancel">取消</button>
+				</div>
+			</div>
+		</div>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.wasm":37685705,"pack-20261026212052.pck":45991920},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"pack-20261026212052.pck"};
+		(function () {
+			var overlay = document.getElementById('cxd-input-overlay');
+			var titleEl = document.getElementById('cxd-input-title');
+			var field = document.getElementById('cxd-input-field');
+			var okBtn = document.getElementById('cxd-input-ok');
+			var cancelBtn = document.getElementById('cxd-input-cancel');
+			window.__cxdInput = { open: false, done: false, value: '', cancelled: false };
+			function finish(ok) {
+				window.__cxdInput.open = false;
+				window.__cxdInput.done = true;
+				window.__cxdInput.cancelled = !ok;
+				window.__cxdInput.value = ok ? String(field.value || '') : '';
+				overlay.classList.remove('open');
+				overlay.setAttribute('aria-hidden', 'true');
+				try { field.blur(); } catch (e) {}
+				try {
+					var c = document.getElementById('canvas');
+					if (c) c.focus();
+				} catch (e2) {}
+			}
+			window.chuxindiaoOpenInput = function (title, value, secret) {
+				window.__cxdInput = { open: true, done: false, value: '', cancelled: false };
+				titleEl.textContent = title || '请输入';
+				field.type = secret ? 'password' : 'text';
+				field.autocomplete = secret ? 'current-password' : 'username';
+				field.value = value || '';
+				overlay.classList.add('open');
+				overlay.setAttribute('aria-hidden', 'false');
+				// 延后 focus，保证在用户手势链路里，且盖住 Godot canvas
+				setTimeout(function () {
+					try {
+						field.focus({ preventScroll: false });
+						field.click();
+						if (field.setSelectionRange) {
+							var n = field.value.length;
+							field.setSelectionRange(n, n);
+						}
+					} catch (e) {
+						try { field.focus(); } catch (e2) {}
+					}
+				}, 30);
+				return true;
+			};
+			window.chuxindiaoPollInput = function () {
+				if (!window.__cxdInput.done) return '';
+				if (window.__cxdInput.cancelled) return '__CXD_CANCEL__';
+				return String(window.__cxdInput.value);
+			};
+			window.chuxindiaoInputBusy = function () {
+				return !!(window.__cxdInput && window.__cxdInput.open && !window.__cxdInput.done);
+			};
+			okBtn.addEventListener('click', function (ev) {
+				ev.preventDefault();
+				finish(true);
+			});
+			cancelBtn.addEventListener('click', function (ev) {
+				ev.preventDefault();
+				finish(false);
+			});
+			field.addEventListener('keydown', function (ev) {
+				if (ev.key === 'Enter') {
+					ev.preventDefault();
+					finish(true);
+				} else if (ev.key === 'Escape') {
+					ev.preventDefault();
+					finish(false);
+				}
+			});
+			// 点遮罩空白不关闭，避免误触；只通过按钮结束
+		})();
+		</script>
+
+		<script src="index.js?v=20261027151745"></script>
+		<script>
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.wasm":37685705,"pack-20261027151745.pck":45993040},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"pack-20261027151745.pck"};
 const GODOT_THREADS_ENABLED = false;
 
 (function () {
