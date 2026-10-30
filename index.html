@@ -1,533 +1,77 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-	<head>
-		<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-		<meta http-equiv="Pragma" content="no-cache">
-		<meta charset="utf-8">
-		<script>
-		!function(){
-			// 只改地址栏展示用，绝不 location.replace 互踢。真正用哪个 pack 由下方 version.json 决定。
-			var baked="20261029154123";
-			function syncV(v){
-				if(!v||v.charAt(0)==="$")return;
-				try{
-					var p=new URLSearchParams(location.search);
-					if(p.get("v")===v)return;
-					p.set("v",v);
-					history.replaceState(null,"",location.pathname+"?"+p.toString()+location.hash);
-				}catch(e){}
-			}
-			if(baked&&baked.charAt(0)!=="$")syncV(baked);
-			window.__chuxindiaoSyncV=syncV;
-		}();
-		</script>
-		<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-		<script>
-		!function(){
-			function block(e){e.preventDefault();}
-			document.addEventListener("gesturestart",block,{passive:false});
-			document.addEventListener("gesturechange",block,{passive:false});
-			document.addEventListener("dblclick",block,{capture:true,passive:false});
-			var last=0;
-			document.addEventListener("touchend",function(e){
-				var now=Date.now();
-				if(now-last<400)e.preventDefault();
-				last=now;
-			},{passive:false});
-		}();
-		</script>
-		<title>楚新钓 · 万钧江湖</title>
-		<style>
-html, body, #canvas {
-	margin: 0;
-	padding: 0;
-	border: 0;
-	width: 100%;
-	height: 100%;
-	touch-action: none;
-	-ms-touch-action: none;
-	-webkit-user-select: none;
-	user-select: none;
-	-webkit-touch-callout: none;
-	-webkit-text-size-adjust: 100%;
-}
-
-body {
-	color: #f4efe4;
-	background-color: #071018;
-	overflow: hidden;
-}
-
-#canvas {
-	display: block;
-}
-
-#canvas:focus {
-	outline: none;
-}
-
-#status {
-	position: absolute;
-	inset: 0;
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
-	align-items: center;
-	visibility: hidden;
-	background: #071018;
-	overflow: hidden;
-	font-family: "PingFang SC", "Noto Sans SC", sans-serif;
-}
-
-#status-splash,
-#status-progress {
-	position: absolute;
-	width: 1px;
-	height: 1px;
-	opacity: 0;
-	pointer-events: none;
-}
-
-#load-copy {
-	text-align: center;
-}
-
-.track {
-	width: min(280px, 70vw);
-	height: 3px;
-	margin: 0 auto;
-	background: rgba(244, 239, 228, 0.12);
-	overflow: hidden;
-}
-
-#load-bar {
-	width: 0%;
-	height: 100%;
-	background: linear-gradient(90deg, #8d6730, #f0d48a);
-	transition: width 0.25s ease;
-}
-
-#load-bar.indeterminate {
-	width: 35%;
-}
-
-#load-pct {
-	margin-top: 0.7rem;
-	font-family: "PingFang SC", sans-serif;
-	font-size: 0.78rem;
-	letter-spacing: 0.18em;
-	color: rgba(232, 220, 196, 0.66);
-}
-
-#status-notice {
-	display: none;
-	background-color: rgba(12, 22, 30, 0.92);
-	border-radius: 0.5rem;
-	border: 1px solid rgba(212, 168, 75, 0.45);
-	color: #f4efe4;
-	font-family: "PingFang SC", sans-serif;
-	line-height: 1.4;
-	margin: 1rem 2rem 0;
-	padding: 1rem;
-	text-align: center;
-	z-index: 2;
-	max-width: 28rem;
-}
-
-/* 手机打字：盖在 canvas 上的原生输入（iOS 需 font-size≥16px 才会弹键盘） */
-#cxd-input-overlay {
-	display: none;
-	position: fixed;
-	inset: 0;
-	z-index: 2147483646;
-	background: rgba(5, 12, 18, 0.78);
-	align-items: flex-start;
-	justify-content: center;
-	padding: 12vw 4vw 4vw;
-	box-sizing: border-box;
-	-webkit-user-select: text;
-	user-select: text;
-	touch-action: manipulation;
-	pointer-events: auto;
-}
-#cxd-input-overlay.open { display: flex; }
-#cxd-input-card {
-	width: min(92vw, 420px);
-	background: #12202a;
-	border: 1px solid rgba(212, 168, 75, 0.55);
-	border-radius: 14px;
-	padding: 16px;
-	font-family: "PingFang SC", "Noto Sans SC", sans-serif;
-	color: #f4efe4;
-	box-shadow: 0 12px 40px rgba(0,0,0,.45);
-}
-#cxd-input-title {
-	font-size: 17px;
-	margin: 0 0 12px;
-	line-height: 1.35;
-}
-#cxd-input-field {
-	display: block;
-	width: 100%;
-	box-sizing: border-box;
-	font-size: 18px !important;
-	line-height: 1.4;
-	padding: 14px 12px;
-	border-radius: 10px;
-	border: 1px solid #4a5a66;
-	background: #0b151c;
-	color: #fff;
-	outline: none;
-	-webkit-user-select: text;
-	user-select: text;
-	touch-action: manipulation;
-}
-#cxd-input-actions {
-	display: flex;
-	gap: 10px;
-	margin-top: 14px;
-}
-#cxd-input-actions button {
-	flex: 1;
-	padding: 14px 10px;
-	font-size: 17px;
-	border: 0;
-	border-radius: 10px;
-	cursor: pointer;
-}
-#cxd-input-ok { background: #d4a84b; color: #1a1208; font-weight: 600; }
-#cxd-input-cancel { background: #2a3a44; color: #f4efe4; }
-
-		</style>
-		<link id="-gd-engine-icon" rel="icon" type="image/png" href="index.icon.png" />
-<link rel="apple-touch-icon" href="index.apple-touch-icon.png"/>
-
-	</head>
-	<body>
-		<canvas id="canvas">
-			Your browser does not support the canvas tag.
-		</canvas>
-
-		<noscript>
-			Your browser does not support JavaScript.
-		</noscript>
-
-		<div id="status">
-			<img id="status-splash" class="show-image--false fullsize--true use-filter--true" src="index.png" alt="">
-			<div id="load-copy">
-				<div class="track"><div id="load-bar" class="indeterminate"></div></div>
-				<div id="load-pct">加载中…</div>
-			</div>
-			<progress id="status-progress"></progress>
-			<div id="status-notice"></div>
-		</div>
-
-		<div id="cxd-input-overlay" aria-hidden="true">
-			<div id="cxd-input-card">
-				<div id="cxd-input-title">请输入</div>
-				<input id="cxd-input-field" type="text" autocomplete="username" enterkeyhint="done" />
-				<div id="cxd-input-actions">
-					<button type="button" id="cxd-input-ok">确定</button>
-					<button type="button" id="cxd-input-cancel">取消</button>
-				</div>
-			</div>
-		</div>
-		<script>
-		(function () {
-			var overlay = document.getElementById('cxd-input-overlay');
-			var titleEl = document.getElementById('cxd-input-title');
-			var field = document.getElementById('cxd-input-field');
-			var okBtn = document.getElementById('cxd-input-ok');
-			var cancelBtn = document.getElementById('cxd-input-cancel');
-			window.__cxdInput = { open: false, done: false, value: '', cancelled: false };
-			function finish(ok) {
-				window.__cxdInput.open = false;
-				window.__cxdInput.done = true;
-				window.__cxdInput.cancelled = !ok;
-				window.__cxdInput.value = ok ? String(field.value || '') : '';
-				overlay.classList.remove('open');
-				overlay.setAttribute('aria-hidden', 'true');
-				try { field.blur(); } catch (e) {}
-				try {
-					var c = document.getElementById('canvas');
-					if (c) c.focus();
-				} catch (e2) {}
-			}
-			window.chuxindiaoOpenInput = function (title, value, secret) {
-				window.__cxdInput = { open: true, done: false, value: '', cancelled: false };
-				titleEl.textContent = title || '请输入';
-				field.type = secret ? 'password' : 'text';
-				field.autocomplete = secret ? 'current-password' : 'username';
-				field.value = value || '';
-				overlay.classList.add('open');
-				overlay.setAttribute('aria-hidden', 'false');
-				// 延后 focus，保证在用户手势链路里，且盖住 Godot canvas
-				setTimeout(function () {
-					try {
-						field.focus({ preventScroll: false });
-						field.click();
-						if (field.setSelectionRange) {
-							var n = field.value.length;
-							field.setSelectionRange(n, n);
-						}
-					} catch (e) {
-						try { field.focus(); } catch (e2) {}
-					}
-				}, 30);
-				return true;
-			};
-			window.chuxindiaoPollInput = function () {
-				if (!window.__cxdInput.done) return '';
-				if (window.__cxdInput.cancelled) return '__CXD_CANCEL__';
-				return String(window.__cxdInput.value);
-			};
-			window.chuxindiaoInputBusy = function () {
-				return !!(window.__cxdInput && window.__cxdInput.open && !window.__cxdInput.done);
-			};
-			okBtn.addEventListener('click', function (ev) {
-				ev.preventDefault();
-				finish(true);
-			});
-			cancelBtn.addEventListener('click', function (ev) {
-				ev.preventDefault();
-				finish(false);
-			});
-			field.addEventListener('keydown', function (ev) {
-				if (ev.key === 'Enter') {
-					ev.preventDefault();
-					finish(true);
-				} else if (ev.key === 'Escape') {
-					ev.preventDefault();
-					finish(false);
-				}
-			});
-			// 点遮罩空白不关闭，避免误触；只通过按钮结束
-		})();
-		</script>
-
-		<script src="index.js?v=20261029154123"></script>
-		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.wasm":37685705,"pack-20261029154123.pck":46018176},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"pack-20261029154123.pck"};
-const GODOT_THREADS_ENABLED = false;
-
-(function () {
-	const statusOverlay = document.getElementById('status');
-	const statusProgress = document.getElementById('status-progress');
-	const statusNotice = document.getElementById('status-notice');
-	const loadBar = document.getElementById('load-bar');
-	const loadPct = document.getElementById('load-pct');
-
-	let initializing = true;
-	let statusMode = '';
-	let engineReady = false;
-	let serverReady = false;
-	let sawFull = false;
-	let stallTimer = 0;
-
-	function maybeHide() {
-		// 引擎就绪 + 联机首轮尝试结束，再关掉加载层（进游戏时就能联机）
-		if (engineReady && serverReady) {
-			setStatusMode('hidden');
-		}
-	}
-
-	window.chuxindiaoSetLoad = function (text) {
-		if (!initializing || !loadPct) {
-			return;
-		}
-		loadPct.textContent = text || '加载中…';
-	};
-
-	window.chuxindiaoFinishLoad = function (text) {
-		serverReady = true;
-		if (loadBar) {
-			loadBar.classList.remove('indeterminate');
-			loadBar.style.width = '100%';
-		}
-		if (loadPct) {
-			loadPct.textContent = text || (engineReady ? '联机就绪，进入游戏…' : '联机就绪，正在启动…');
-		}
-		maybeHide();
-	};
-
-	function armStallWatch() {
-		if (stallTimer) {
-			return;
-		}
-		stallTimer = window.setTimeout(function () {
-			if (!initializing) {
-				return;
-			}
-			setStatusNotice('下载已完成，但游戏没有启动。\n请用 Chrome 打开，或关掉此页后重新进入。\n手机请尽量关闭其他应用后再试。');
-			setStatusMode('notice');
-		}, 70000);
-	}
-
-	function setStatusMode(mode) {
-		if (statusMode === mode || !initializing) {
-			return;
-		}
-		if (mode === 'hidden') {
-			statusOverlay.remove();
-			initializing = false;
-			return;
-		}
-		statusOverlay.style.visibility = 'visible';
-		statusProgress.style.display = 'none';
-		statusNotice.style.display = mode === 'notice' ? 'block' : 'none';
-		statusMode = mode;
-	}
-
-	function setStatusNotice(text) {
-		while (statusNotice.lastChild) {
-			statusNotice.removeChild(statusNotice.lastChild);
-		}
-		const lines = text.split('\n');
-		lines.forEach((line) => {
-			statusNotice.appendChild(document.createTextNode(line));
-			statusNotice.appendChild(document.createElement('br'));
-		});
-	}
-
-	function displayFailureNotice(err) {
-		console.error(err);
-		if (err instanceof Error) {
-			setStatusNotice(err.message);
-		} else if (typeof err === 'string') {
-			setStatusNotice(err);
-		} else {
-			setStatusNotice('An unknown error occurred.');
-		}
-		setStatusMode('notice');
-		initializing = false;
-	}
-
-	// 根治：HTML 被缓存时 mainPack 会是旧包。启动前用 version.json 覆盖，才是真正进新包。
-	function applyLatestPack(meta) {
-		if (!meta || !meta.pack) {
-			return;
-		}
-		var pack = String(meta.pack);
-		GODOT_CONFIG.mainPack = pack;
-		var sizes = GODOT_CONFIG.fileSizes || {};
-		var next = {};
-		Object.keys(sizes).forEach(function (k) {
-			if (k.indexOf('pack-') !== 0 && k !== 'index.pck') {
-				next[k] = sizes[k];
-			}
-		});
-		if (meta.size) {
-			next[pack] = meta.size;
-		} else if (sizes[pack]) {
-			next[pack] = sizes[pack];
-		}
-		GODOT_CONFIG.fileSizes = next;
-		if (meta.v && typeof window.__chuxindiaoSyncV === 'function') {
-			window.__chuxindiaoSyncV(String(meta.v));
-		}
-		if (loadPct) {
-			loadPct.textContent = '同步最新包 ' + (meta.v || pack) + '…';
-		}
-	}
-
-	var booted = false;
-	function bootEngine() {
-		if (booted) {
-			return;
-		}
-		booted = true;
-		const engine = new Engine(GODOT_CONFIG);
-		const missing = Engine.getMissingFeatures({
-			threads: GODOT_THREADS_ENABLED,
-		});
-
-		if (missing.length !== 0) {
-			if (GODOT_CONFIG['serviceWorker'] && GODOT_CONFIG['ensureCrossOriginIsolationHeaders'] && 'serviceWorker' in navigator) {
-				let serviceWorkerRegistrationPromise;
-				try {
-					serviceWorkerRegistrationPromise = navigator.serviceWorker.getRegistration();
-				} catch (err) {
-					serviceWorkerRegistrationPromise = Promise.reject(new Error('Service worker registration failed.'));
-				}
-				Promise.race([
-					serviceWorkerRegistrationPromise.then((registration) => {
-						if (registration != null) {
-							return Promise.reject(new Error('Service worker already exists.'));
-						}
-						return registration;
-					}).then(() => engine.installServiceWorker()),
-					new Promise((resolve) => {
-						setTimeout(() => resolve(), 2000);
-					}),
-				]).then(() => {
-					window.location.reload();
-				}).catch((err) => {
-					console.error('Error while registering service worker:', err);
-				});
-			} else {
-				const missingMsg = 'Error\nThe following features required to run Godot projects on the Web are missing:\n';
-				displayFailureNotice(missingMsg + missing.join('\n'));
-			}
-			return;
-		}
-
-		setStatusMode('progress');
-		engine.startGame({
-			'onProgress': function (current, total) {
-				if (current > 0 && total > 0) {
-					statusProgress.value = current;
-					statusProgress.max = total;
-					const p = Math.max(0, Math.min(100, Math.round(current / total * 100)));
-					loadBar.classList.remove('indeterminate');
-					loadBar.style.width = p + '%';
-					if (p >= 100) {
-						sawFull = true;
-						loadPct.textContent = '正在启动…';
-						armStallWatch();
-					} else {
-						loadPct.textContent = '加载中 ' + p + '%';
-					}
-				} else {
-					statusProgress.removeAttribute('value');
-					statusProgress.removeAttribute('max');
-					loadBar.classList.add('indeterminate');
-					loadPct.textContent = '加载中…';
-				}
-			},
-		}).then(() => {
-			engineReady = true;
-			if (stallTimer) {
-				window.clearTimeout(stallTimer);
-			}
-			if (!serverReady && loadPct) {
-				loadPct.textContent = '游戏已就绪，正在连接联机…';
-			}
-			maybeHide();
-		}, displayFailureNotice);
-	}
-
-	setStatusMode('progress');
-	if (loadPct) {
-		loadPct.textContent = '检查版本…';
-	}
-	var versionTimer = window.setTimeout(function () {
-		bootEngine();
-	}, 2500);
-	fetch('version.json?t=' + Date.now(), { cache: 'no-store' })
-		.then(function (r) { return r.ok ? r.json() : null; })
-		.then(function (j) {
-			window.clearTimeout(versionTimer);
-			if (j) {
-				applyLatestPack(j);
-			}
-			bootEngine();
-		})
-		.catch(function () {
-			window.clearTimeout(versionTimer);
-			bootEngine();
-		});
-}());
-		</script>
-	</body>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>楚新钓 · 万钧江湖</title>
+  <meta name="description" content="楚新钓独立站：拉力垂钓、手机操控、世界聊天与好友同钓。" />
+  <style>
+    :root { --bg:#07141c; --fg:#e8f0f5; --accent:#d4a84b; --card:#0e2430; }
+    * { box-sizing: border-box; }
+    html, body { margin:0; height:100%; background:var(--bg); color:var(--fg);
+      font-family: "PingFang SC", "Noto Sans SC", system-ui, sans-serif; }
+    .wrap { min-height:100%; display:flex; flex-direction:column; }
+    header { padding:1rem 1.25rem; display:flex; flex-wrap:wrap; gap:.75rem; align-items:center;
+      justify-content:space-between; border-bottom:1px solid #1a3344; background:linear-gradient(180deg,#0c1e28,#07141c); }
+    header h1 { margin:0; font-size:1.25rem; letter-spacing:.04em; color:var(--accent); font-weight:600; }
+    header p { margin:0; opacity:.8; font-size:.85rem; }
+    .actions { display:flex; gap:.5rem; flex-wrap:wrap; }
+    a.btn, button.btn { appearance:none; border:0; cursor:pointer; text-decoration:none;
+      background:var(--accent); color:#1a1205; font-weight:700; padding:.55rem 1rem; border-radius:8px; font-size:.95rem; }
+    a.btn.ghost { background:transparent; color:var(--fg); border:1px solid #3a5566; }
+    main { flex:1; display:flex; flex-direction:column; }
+    #gameFrame { flex:1; width:100%; border:0; min-height:70vh; background:#000; }
+    footer { padding:.75rem 1.25rem; font-size:.75rem; opacity:.65; border-top:1px solid #1a3344; }
+    .note { max-width:720px; margin:0 auto; padding:1rem 1.25rem; color:#b7c6d0; font-size:.9rem; line-height:1.5; }
+    .share { max-width:720px; margin:0 auto 0.5rem; padding:0 1.25rem 1rem; display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
+    .share label { font-size:.85rem; color:var(--accent); white-space:nowrap; }
+    .share input { flex:1; min-width:180px; background:#0a1a22; border:1px solid #3a5566; color:var(--fg);
+      border-radius:8px; padding:.55rem .75rem; font-size:.85rem; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>楚新钓 · 万钧江湖</h1>
+        <p>独立站 · 手机/电脑 · 世界聊天 · 邀请好友同钓</p>
+      </div>
+      <div class="actions">
+        <a class="btn" href="./play/">立即开玩</a>
+        <a class="btn ghost" href="./play/" target="_blank" rel="noopener">新窗口</a>
+      </div>
+    </header>
+    <p class="note">网页版名称：<strong style="color:var(--accent)">楚新钓 · 万钧江湖</strong>。首次加载约 60MB，请耐心等进度条；同 WiFi 朋友用本机局域网更快。进入后选手机/电脑布局，码头可邀请同钓。</p>
+    <div class="share">
+      <label for="shareUrl">网页版网址</label>
+      <input id="shareUrl" type="text" readonly value="" />
+      <button type="button" class="btn" id="copyUrlBtn">复制网址</button>
+    </div>
+    <main>
+      <iframe id="gameFrame" title="楚新钓游戏" src="./play/" allow="autoplay; fullscreen; gamepad" allowfullscreen></iframe>
+    </main>
+    <footer>© 楚新钓独立站 · 非第三方游戏聚合平台</footer>
+  </div>
+  <script>
+    (function () {
+      var input = document.getElementById("shareUrl");
+      var btn = document.getElementById("copyUrlBtn");
+      var url = location.origin.replace(/\/$/, "") + "/play/";
+      input.value = url;
+      function copy() {
+        input.focus();
+        input.select();
+        var ok = false;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(url).then(function () { ok = true; }).catch(function () {});
+        }
+        try { ok = document.execCommand("copy") || ok; } catch (e) {}
+        btn.textContent = ok || document.getSelection().toString() === url ? "已复制" : "请手动复制";
+        setTimeout(function () { btn.textContent = "复制网址"; }, 1600);
+      }
+      btn.addEventListener("click", copy);
+      input.addEventListener("focus", function () { input.select(); });
+    })();
+  </script>
+</body>
 </html>
-
