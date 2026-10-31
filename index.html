@@ -519,17 +519,29 @@ const GODOT_THREADS_ENABLED = false;
 			.then(function (r) { return r.ok ? r.json() : null; })
 			.catch(function () { return null; });
 	}
+	function metaStamp(m) {
+		if (!m) return '';
+		if (m.v) return String(m.v);
+		var p = String(m.pack || '');
+		var mm = p.match(/(\d{10,})/);
+		return mm ? mm[1] : '';
+	}
 	function newerMeta(a, b) {
 		if (!a) return b;
 		if (!b) return a;
-		return String(b.v || '') > String(a.v || '') ? b : a;
+		return metaStamp(b) > metaStamp(a) ? b : a;
 	}
 	Promise.all([
 		fetchJson('version.json?t=' + Date.now()),
+		fetchJson('../version.json?t=' + Date.now()),
+		fetchJson('https://raw.githubusercontent.com/jay20130321/chuxindiao/main/version.json?t=' + Date.now()),
 		fetchJson('https://raw.githubusercontent.com/jay20130321/chuxindiao/main/play/version.json?t=' + Date.now()),
 	]).then(function (pair) {
 		window.clearTimeout(versionTimer);
-		var j = newerMeta(pair[0], pair[1]);
+		var j = null;
+		for (var i = 0; i < pair.length; i++) {
+			j = newerMeta(j, pair[i]);
+		}
 		if (j) {
 			applyLatestPack(j);
 			// HTML 自身过旧时强制整页重载一次，清掉旧 index.js 缓存
