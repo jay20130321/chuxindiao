@@ -7,7 +7,7 @@
 		<script>
 		!function(){
 			// 只改地址栏展示用，绝不 location.replace 互踢。真正用哪个 pack 由下方 version.json 决定。
-			var baked="20261031093001";
+			var baked="20261031093234";
 			function syncV(v){
 				if(!v||v.charAt(0)==="$")return;
 				try{
@@ -305,9 +305,9 @@ body {
 		})();
 		</script>
 
-		<script src="index.js?v=20261031093001"></script>
+		<script src="index.js?v=20261031093234"></script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.wasm":37685705,"pack-20261031093001.pck":46497160},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"pack-20261031093001.pck"};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.wasm":37685705,"pack-20261031093234.pck":46497176},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"pack-20261031093234.pck"};
 const GODOT_THREADS_ENABLED = false;
 
 (function () {
@@ -403,31 +403,61 @@ const GODOT_THREADS_ENABLED = false;
 	}
 
 	// 根治：HTML 被缓存时 mainPack 会是旧包。启动前用 version.json 覆盖，才是真正进新包。
+	// 若新包还没被 Pages 放出来（404），绝不切换，避免「Failed loading file pack-….pck」。
 	function applyLatestPack(meta) {
 		if (!meta || !meta.pack) {
-			return;
+			return Promise.resolve(false);
 		}
 		var pack = String(meta.pack);
-		GODOT_CONFIG.mainPack = pack;
-		var sizes = GODOT_CONFIG.fileSizes || {};
-		var next = {};
-		Object.keys(sizes).forEach(function (k) {
-			if (k.indexOf('pack-') !== 0 && k !== 'index.pck') {
-				next[k] = sizes[k];
+		var baked = String((GODOT_CONFIG && GODOT_CONFIG.mainPack) || '');
+		if (pack === baked) {
+			if (meta.v && typeof window.__chuxindiaoSyncV === 'function') {
+				window.__chuxindiaoSyncV(String(meta.v));
 			}
-		});
-		if (meta.size) {
-			next[pack] = meta.size;
-		} else if (sizes[pack]) {
-			next[pack] = sizes[pack];
-		}
-		GODOT_CONFIG.fileSizes = next;
-		if (meta.v && typeof window.__chuxindiaoSyncV === 'function') {
-			window.__chuxindiaoSyncV(String(meta.v));
+			return Promise.resolve(true);
 		}
 		if (loadPct) {
-			loadPct.textContent = '同步最新包 ' + (meta.v || pack) + '…';
+			loadPct.textContent = '检查资源包 ' + (meta.v || pack) + '…';
 		}
+		return fetch(pack + '?t=' + Date.now(), { method: 'HEAD', cache: 'no-store' })
+			.then(function (r) {
+				if (!r.ok) {
+					return fetch(pack + '?t=' + Date.now(), { method: 'GET', cache: 'no-store', headers: { Range: 'bytes=0-15' } })
+						.then(function (r2) { return r2.ok; })
+						.catch(function () { return false; });
+				}
+				return true;
+			})
+			.catch(function () { return false; })
+			.then(function (ok) {
+				if (!ok) {
+					if (loadPct) {
+						loadPct.textContent = '新包尚未就绪，先用当前包…';
+					}
+					return false;
+				}
+				GODOT_CONFIG.mainPack = pack;
+				var sizes = GODOT_CONFIG.fileSizes || {};
+				var next = {};
+				Object.keys(sizes).forEach(function (k) {
+					if (k.indexOf('pack-') !== 0 && k !== 'index.pck') {
+						next[k] = sizes[k];
+					}
+				});
+				if (meta.size) {
+					next[pack] = meta.size;
+				} else if (sizes[pack]) {
+					next[pack] = sizes[pack];
+				}
+				GODOT_CONFIG.fileSizes = next;
+				if (meta.v && typeof window.__chuxindiaoSyncV === 'function') {
+					window.__chuxindiaoSyncV(String(meta.v));
+				}
+				if (loadPct) {
+					loadPct.textContent = '同步最新包 ' + (meta.v || pack) + '…';
+				}
+				return true;
+			});
 	}
 
 	var booted = false;
@@ -542,26 +572,32 @@ const GODOT_THREADS_ENABLED = false;
 		for (var i = 0; i < pair.length; i++) {
 			j = newerMeta(j, pair[i]);
 		}
-		if (j) {
-			applyLatestPack(j);
-			// HTML 自身过旧时强制整页重载一次，清掉旧 index.js 缓存
-			var bakedEl = document.documentElement.getAttribute('data-cxd-v') || '';
-			try {
-				var bakedMatch = (document.head && document.head.innerHTML || '').match(/baked="(\d+)"/);
-				if (bakedMatch) bakedEl = bakedMatch[1];
-			} catch (e1) {}
-			if (j.v && bakedEl && String(j.v) !== String(bakedEl)) {
-				var key = 'cxd_reload_' + j.v;
+		var after = function (switched) {
+			// 仅当新包确实可下载、且 HTML 过旧时才整页重载
+			if (switched && j && j.v) {
+				var bakedEl = document.documentElement.getAttribute('data-cxd-v') || '';
 				try {
-					if (!sessionStorage.getItem(key)) {
-						sessionStorage.setItem(key, '1');
-						location.replace(location.pathname + '?v=' + encodeURIComponent(j.v) + '&_=' + Date.now());
-						return;
-					}
-				} catch (e2) {}
+					var bakedMatch = (document.head && document.head.innerHTML || '').match(/baked="(\d+)"/);
+					if (bakedMatch) bakedEl = bakedMatch[1];
+				} catch (e1) {}
+				if (bakedEl && String(j.v) !== String(bakedEl)) {
+					var key = 'cxd_reload_' + j.v;
+					try {
+						if (!sessionStorage.getItem(key)) {
+							sessionStorage.setItem(key, '1');
+							location.replace(location.pathname + '?v=' + encodeURIComponent(j.v) + '&_=' + Date.now());
+							return;
+						}
+					} catch (e2) {}
+				}
 			}
+			bootEngine();
+		};
+		if (j) {
+			Promise.resolve(applyLatestPack(j)).then(after).catch(function () { bootEngine(); });
+		} else {
+			bootEngine();
 		}
-		bootEngine();
 	}).catch(function () {
 		window.clearTimeout(versionTimer);
 		bootEngine();
