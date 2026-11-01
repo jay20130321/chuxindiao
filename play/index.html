@@ -6,38 +6,64 @@
 		<meta charset="utf-8">
 		<script>
 		!function(){
-			// 地址栏 v 仅作展示；若明显落后于本页 baked，强制换址重载（防旧链/?v=旧包 一直停在旧缓存）
-			var baked="20261101151406";
-			function syncV(v, hard){
-				if(!v||v.charAt(0)==="$")return;
+			// 旧 ?v= 链经常卡在 CDN/浏览器缓存。开页立刻对齐最新包：落后就 location.replace。
+			var baked="20261101151827";
+			function goLatest(v){
+				if(!v||String(v).charAt(0)==="$")return;
+				v=String(v);
 				try{
 					var p=new URLSearchParams(location.search);
-					if(p.get("v")===v)return;
+					if(p.get("v")===v && p.get("fresh")==="1")return;
 					p.set("v",v);
-					p.set("_", String(Date.now()));
-					var next=location.pathname+"?"+p.toString()+location.hash;
-					if(hard){
-						location.replace(next);
-						return;
-					}
-					history.replaceState(null,"",next);
+					p.set("fresh","1");
+					p.set("_",String(Date.now()));
+					location.replace(location.pathname+"?"+p.toString()+location.hash);
 				}catch(e){}
 			}
-			if(baked&&baked.charAt(0)!=="$"){
+			function syncV(v, hard){
+				if(!v||String(v).charAt(0)==="$")return;
+				v=String(v);
 				try{
-					var cur=(new URLSearchParams(location.search)).get("v")||"";
-					if(cur && /^\d+$/.test(cur) && /^\d+$/.test(baked) && cur<baked){
-						var key="cxd_hard_"+baked;
-						if(!sessionStorage.getItem(key)){
-							sessionStorage.setItem(key,"1");
-							syncV(baked,true);
-							return;
-						}
+					var p=new URLSearchParams(location.search);
+					if(p.get("v")===v){
+						if(hard)goLatest(v);
+						return;
 					}
-				}catch(e2){}
-				syncV(baked,false);
+					if(hard){ goLatest(v); return; }
+					p.set("v",v);
+					history.replaceState(null,"",location.pathname+"?"+p.toString()+location.hash);
+				}catch(e){}
 			}
 			window.__chuxindiaoSyncV=syncV;
+			var cur="";
+			try{ cur=(new URLSearchParams(location.search)).get("v")||""; }catch(e0){}
+			if(baked&&baked.charAt(0)!=="$" && cur && /^\d+$/.test(cur) && cur<baked){
+				goLatest(baked);
+				return;
+			}
+			if(baked&&baked.charAt(0)!=="$")syncV(baked,false);
+			// 再问 version.json / GitHub 原文件，Pages CDN 落后时也能跳到真·最新
+			function pickV(a,b){
+				if(!a)return b; if(!b)return a;
+				return String(b)>String(a)?b:a;
+			}
+			function readV(j){ return j&&j.v?String(j.v):""; }
+			function fetchV(url){
+				return fetch(url,{cache:"no-store"}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});
+			}
+			Promise.all([
+				fetchV("version.json?t="+Date.now()),
+				fetchV("https://raw.githubusercontent.com/jay20130321/chuxindiao/main/version.json?t="+Date.now())
+			]).then(function(arr){
+				var latest=pickV(readV(arr[0]), readV(arr[1]));
+				latest=pickV(latest, baked&&baked.charAt(0)!=="$"?baked:"");
+				if(!latest||!/^\d+$/.test(latest))return;
+				var now="";
+				try{ now=(new URLSearchParams(location.search)).get("v")||""; }catch(e1){}
+				if(!now || now<latest){
+					goLatest(latest);
+				}
+			}).catch(function(){});
 		}();
 		</script>
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -375,9 +401,9 @@ body {
 		})();
 		</script>
 
-		<script src="index.js?v=20261101151406"></script>
+		<script src="index.js?v=20261101151827"></script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.wasm":37685705,"pack-20261101151406.pck":46598060},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"pack-20261101151406.pck"};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.wasm":37685705,"pack-20261101151827.pck":46597020},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"pack-20261101151827.pck"};
 const GODOT_THREADS_ENABLED = false;
 
 (function () {
