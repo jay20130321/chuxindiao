@@ -7,7 +7,7 @@
 		<script>
 		!function(){
 			// 旧 ?v= 链经常卡在 CDN/浏览器缓存。开页立刻对齐最新包：落后就 location.replace。
-			var baked="20261101152956";
+			var baked="20261101153229";
 			function goLatest(v){
 				if(!v||String(v).charAt(0)==="$")return;
 				v=String(v);
@@ -401,9 +401,9 @@ body {
 		})();
 		</script>
 
-		<script src="index.js?v=20261101152956"></script>
+		<script src="index.js?v=20261101153229"></script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.wasm":37685705,"pack-20261101152956.pck":46603244},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"pack-20261101152956.pck"};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.wasm":37685705,"pack-20261101153229.pck":46604028},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"pack-20261101153229.pck"};
 const GODOT_THREADS_ENABLED = false;
 
 (function () {
@@ -735,6 +735,8 @@ const GODOT_THREADS_ENABLED = false;
 		if (!b) return a;
 		return metaStamp(b) > metaStamp(a) ? b : a;
 	}
+	// 优先本站 version.json；GitHub 原文件仅作参考，且必须本站 pack 已 200 才切换，
+	// 避免 CDN 未同步时跳到不存在的包导致白屏/出不了钓。
 	Promise.all([
 		fetchJson('version.json?t=' + Date.now()),
 		fetchJson('../version.json?t=' + Date.now()),
@@ -742,47 +744,57 @@ const GODOT_THREADS_ENABLED = false;
 		fetchJson('https://raw.githubusercontent.com/jay20130321/chuxindiao/main/play/version.json?t=' + Date.now()),
 	]).then(function (pair) {
 		window.clearTimeout(versionTimer);
-		var j = null;
-		for (var i = 0; i < pair.length; i++) {
-			j = newerMeta(j, pair[i]);
-		}
-		var after = function (switched) {
-			// 新包可下载且（HTML baked 或地址栏 v）落后时，整页重载一次
-			if (switched && j && j.v) {
-				var bakedEl = '';
-				var urlV = '';
-				try {
-					var bakedMatch = (document.head && document.head.innerHTML || '').match(/baked="(\d+)"/);
-					if (bakedMatch) bakedEl = bakedMatch[1];
-					urlV = new URLSearchParams(location.search).get('v') || '';
-				} catch (e1) {}
-				var latest = String(j.v);
-				var staleHtml = bakedEl && latest !== String(bakedEl);
-				var staleUrl = urlV && /^\d+$/.test(urlV) && urlV < latest;
-				if (staleHtml || staleUrl) {
-					var key = 'cxd_reload_' + latest;
+		var localMeta = newerMeta(pair[0], pair[1]);
+		var remoteMeta = newerMeta(pair[2], pair[3]);
+		var pickAndBoot = function (j) {
+			var after = function (switched) {
+				if (switched && j && j.v) {
+					var bakedEl = '';
+					var urlV = '';
 					try {
-						if (!sessionStorage.getItem(key)) {
-							sessionStorage.setItem(key, '1');
-							try {
-								if (window.caches && caches.keys) {
-									caches.keys().then(function (ks) {
-										ks.forEach(function (k) { caches.delete(k); });
-									});
-								}
-							} catch (e3) {}
-							location.replace(location.pathname + '?v=' + encodeURIComponent(latest) + '&_=' + Date.now());
-							return;
-						}
-					} catch (e2) {}
+						var bakedMatch = (document.head && document.head.innerHTML || '').match(/baked="(\d+)"/);
+						if (bakedMatch) bakedEl = bakedMatch[1];
+						urlV = new URLSearchParams(location.search).get('v') || '';
+					} catch (e1) {}
+					var latest = String(j.v);
+					var staleHtml = bakedEl && latest !== String(bakedEl);
+					var staleUrl = urlV && /^\d+$/.test(urlV) && urlV < latest;
+					if (staleHtml || staleUrl) {
+						var key = 'cxd_reload_' + latest;
+						try {
+							if (!sessionStorage.getItem(key)) {
+								sessionStorage.setItem(key, '1');
+								try {
+									if (window.caches && caches.keys) {
+										caches.keys().then(function (ks) {
+											ks.forEach(function (k) { caches.delete(k); });
+										});
+									}
+								} catch (e3) {}
+								location.replace(location.pathname + '?v=' + encodeURIComponent(latest) + '&fresh=1&_=' + Date.now());
+								return;
+							}
+						} catch (e2) {}
+					}
 				}
+				bootEngine();
+			};
+			if (j) {
+				Promise.resolve(applyLatestPack(j)).then(after).catch(function () { bootEngine(); });
+			} else {
+				bootEngine();
 			}
-			bootEngine();
 		};
-		if (j) {
-			Promise.resolve(applyLatestPack(j)).then(after).catch(function () { bootEngine(); });
+		var remoteNewer = remoteMeta && metaStamp(remoteMeta) > metaStamp(localMeta || {});
+		if (remoteNewer && remoteMeta && remoteMeta.pack) {
+			fetch(String(remoteMeta.pack) + '?t=' + Date.now(), { method: 'HEAD', cache: 'no-store' })
+				.then(function (r) { return r.ok; })
+				.catch(function () { return false; })
+				.then(function (ok) {
+					pickAndBoot(ok ? remoteMeta : (localMeta || remoteMeta));
+				});
 		} else {
-			bootEngine();
+			pickAndBoot(localMeta || remoteMeta);
 		}
 	}).catch(function () {
 		window.clearTimeout(versionTimer);
