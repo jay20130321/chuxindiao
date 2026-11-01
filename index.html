@@ -7,7 +7,7 @@
 		<script>
 		!function(){
 			// 只改地址栏展示用，绝不 location.replace 互踢。真正用哪个 pack 由下方 version.json 决定。
-			var baked="20261101141831";
+			var baked="20261101142406";
 			function syncV(v){
 				if(!v||v.charAt(0)==="$")return;
 				try{
@@ -24,16 +24,67 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 		<script>
 		!function(){
+			// iOS 兼容探测：16.3.x 无 WASM SIMD；16.4+ 才稳定跑 Godot 4 网页包
+			function iosInfo(){
+				var ua=navigator.userAgent||"";
+				var iPadOS=navigator.platform==="MacIntel"&&(navigator.maxTouchPoints||0)>1;
+				var isIOS=/iPhone|iPad|iPod/i.test(ua)||iPadOS;
+				var ver=0, maj=0, min=0, patch=0;
+				var m=ua.match(/OS (\d+)[._](\d+)(?:[._](\d+))?/);
+				if(!m&&iPadOS){
+					m=String(navigator.appVersion||"").match(/Version\/(\d+)\.(\d+)(?:\.(\d+))?/);
+				}
+				if(m){
+					maj=+m[1]||0; min=+m[2]||0; patch=+m[3]||0;
+					ver=maj+min/100+patch/10000;
+				}
+				return {isIOS:isIOS, ver:ver, maj:maj, min:min, patch:patch, ua:ua};
+			}
+			function supportsWasmSimd(){
+				try{
+					// 最小 v128 模块；iOS Safari <16.4 会 validate=false / 抛错
+					return WebAssembly.validate(new Uint8Array([
+						0,97,115,109,1,0,0,0,1,5,1,96,0,1,123,3,2,1,0,10,10,1,8,0,65,0,253,15,253,98,0
+					]));
+				}catch(e){ return false; }
+			}
+			window.__cxdIOS=iosInfo();
+			window.__cxdWasmSimd=supportsWasmSimd();
+			window.__cxdLegacyIOS=!!(window.__cxdIOS.isIOS && (window.__cxdIOS.maj<16 || (window.__cxdIOS.maj===16 && window.__cxdIOS.min<4)));
+
+			function isTypingTarget(t){
+				if(!t||!t.closest) return false;
+				if(t.closest("#cxd-input-overlay")) return true;
+				var tag=(t.tagName||"").toLowerCase();
+				return tag==="input"||tag==="textarea"||tag==="select"||tag==="button"||!!t.isContentEditable;
+			}
 			function block(e){e.preventDefault();}
 			document.addEventListener("gesturestart",block,{passive:false});
 			document.addEventListener("gesturechange",block,{passive:false});
-			document.addEventListener("dblclick",block,{capture:true,passive:false});
+			document.addEventListener("dblclick",function(e){
+				if(isTypingTarget(e.target)) return;
+				e.preventDefault();
+			},{capture:true,passive:false});
 			var last=0;
 			document.addEventListener("touchend",function(e){
+				if(isTypingTarget(e.target)) return;
 				var now=Date.now();
 				if(now-last<400)e.preventDefault();
 				last=now;
 			},{passive:false});
+
+			// iOS 需用户手势解锁音频；多事件兜底
+			function unlockAudio(){
+				try{
+					var AC=window.AudioContext||window.webkitAudioContext;
+					if(!AC) return;
+					if(!window.__cxdAC) window.__cxdAC=new AC();
+					if(window.__cxdAC.state==="suspended") window.__cxdAC.resume();
+				}catch(e){}
+			}
+			["touchstart","touchend","mousedown","click","pointerdown"].forEach(function(ev){
+				document.addEventListener(ev, unlockAudio, {capture:true, passive:true});
+			});
 		}();
 		</script>
 		<title>楚新钓 · 万钧江湖</title>
@@ -305,9 +356,9 @@ body {
 		})();
 		</script>
 
-		<script src="index.js?v=20261101141831"></script>
+		<script src="index.js?v=20261101142406"></script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.wasm":37685705,"pack-20261101141831.pck":46580044},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"pack-20261101141831.pck"};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.wasm":37685705,"pack-20261101142406.pck":46580268},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"pack-20261101142406.pck"};
 const GODOT_THREADS_ENABLED = false;
 
 (function () {
@@ -358,7 +409,14 @@ const GODOT_THREADS_ENABLED = false;
 			if (!initializing) {
 				return;
 			}
-			setStatusNotice('下载已完成，但游戏没有启动。\n请用 Chrome 打开，或关掉此页后重新进入。\n手机请尽量关闭其他应用后再试。');
+			var ios = window.__cxdIOS || {};
+			var stall = '下载已完成，但游戏没有启动。\n请关掉此页后重新进入；手机请先关闭其他应用。';
+			if (ios.isIOS) {
+				stall += '\n若是 iOS 16.3.x，请升级到 16.4+（需 WebAssembly SIMD）。';
+			} else {
+				stall += '\n电脑可试 Chrome / Edge。';
+			}
+			setStatusNotice(stall);
 			setStatusMode('notice');
 		}, 70000);
 	}
@@ -391,15 +449,79 @@ const GODOT_THREADS_ENABLED = false;
 
 	function displayFailureNotice(err) {
 		console.error(err);
+		var raw = '';
 		if (err instanceof Error) {
-			setStatusNotice(err.message);
+			raw = err.message || String(err);
 		} else if (typeof err === 'string') {
-			setStatusNotice(err);
+			raw = err;
 		} else {
-			setStatusNotice('An unknown error occurred.');
+			raw = '未知错误';
+		}
+		var low = String(raw).toLowerCase();
+		var ios = window.__cxdIOS || {};
+		var tips = [];
+		if (
+			low.indexOf('webassembly') >= 0 ||
+			low.indexOf('simd') >= 0 ||
+			low.indexOf("doesn't parse") >= 0 ||
+			low.indexOf('compileerror') >= 0 ||
+			low.indexOf('cannot compile') >= 0
+		) {
+			tips.push('当前浏览器编不过游戏引擎包（多与 WebAssembly SIMD 有关）。');
+			if (ios.isIOS) {
+				tips.push('检测到 iOS ' + (ios.maj || '?') + '.' + (ios.min || '?') + (ios.patch ? '.' + ios.patch : '') + '。');
+				tips.push('请升级到 iOS 16.4 或更新系统后再用 Safari / 微信内置浏览器打开。');
+			} else {
+				tips.push('请换 Chrome / Edge，或升级系统浏览器后再试。');
+			}
+		} else if (low.indexOf('out of memory') >= 0 || low.indexOf('oom') >= 0 || low.indexOf('memory') >= 0) {
+			tips.push('内存不够，网页版启动失败。');
+			tips.push('请关掉其他 App / 标签页后重开；旧款 iPhone 更吃紧。');
+		} else if (low.indexOf('webgl') >= 0) {
+			tips.push('需要 WebGL2。请确认没开「低电量模式」过度限制，或换机再试。');
+		}
+		if (tips.length) {
+			tips.push('');
+			tips.push('技术信息：' + raw);
+			setStatusNotice(tips.join('\n'));
+		} else {
+			setStatusNotice(raw);
 		}
 		setStatusMode('notice');
 		initializing = false;
+	}
+
+	function showLegacyIOSGate(thenBoot) {
+		var ios = window.__cxdIOS || {};
+		var verTxt = (ios.maj || '?') + '.' + (ios.min || '?') + (ios.patch ? '.' + ios.patch : '');
+		setStatusNotice(
+			'当前系统 iOS ' + verTxt + ' 对网页版支持不完整。\n' +
+			'本游戏需要 iOS 16.4+ 的 WebAssembly SIMD。\n' +
+			'建议：设置 → 通用 → 软件更新，升到 16.4 或以上。\n' +
+			'仍可点下方按钮尝试启动（16.3.x 通常会失败）。'
+		);
+		setStatusMode('notice');
+		if (loadPct) {
+			loadPct.textContent = 'iOS ' + verTxt + ' 兼容提示';
+		}
+		var old = statusNotice.querySelector('.cxd-try-btn');
+		if (old) {
+			old.parentNode.removeChild(old);
+		}
+		var btn = document.createElement('button');
+		btn.className = 'cxd-try-btn';
+		btn.type = 'button';
+		btn.textContent = '仍要尝试启动';
+		btn.style.cssText = 'margin-top:14px;padding:12px 18px;font-size:16px;border:0;border-radius:10px;background:#d4a84b;color:#1a1208;font-weight:600;';
+		btn.addEventListener('click', function () {
+			try { btn.disabled = true; } catch (e) {}
+			setStatusMode('progress');
+			if (loadPct) {
+				loadPct.textContent = '正在尝试启动…';
+			}
+			thenBoot();
+		});
+		statusNotice.appendChild(btn);
 	}
 
 	// 根治：HTML 被缓存时 mainPack 会是旧包。启动前用 version.json 覆盖，才是真正进新包。
@@ -461,7 +583,14 @@ const GODOT_THREADS_ENABLED = false;
 	}
 
 	var booted = false;
+	var gateShown = false;
 	function bootEngine() {
+		// 老 iOS：先提示再让用户确认，避免白屏/难懂的 WASM 报错
+		if (!gateShown && window.__cxdLegacyIOS && window.__cxdWasmSimd === false) {
+			gateShown = true;
+			showLegacyIOSGate(function () { bootEngine(); });
+			return;
+		}
 		if (booted) {
 			return;
 		}
@@ -495,7 +624,7 @@ const GODOT_THREADS_ENABLED = false;
 					console.error('Error while registering service worker:', err);
 				});
 			} else {
-				const missingMsg = 'Error\nThe following features required to run Godot projects on the Web are missing:\n';
+				const missingMsg = '当前浏览器缺必要能力，无法运行：\n';
 				displayFailureNotice(missingMsg + missing.join('\n'));
 			}
 			return;
