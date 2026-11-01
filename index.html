@@ -6,18 +6,37 @@
 		<meta charset="utf-8">
 		<script>
 		!function(){
-			// 只改地址栏展示用，绝不 location.replace 互踢。真正用哪个 pack 由下方 version.json 决定。
-			var baked="20261101150846";
-			function syncV(v){
+			// 地址栏 v 仅作展示；若明显落后于本页 baked，强制换址重载（防旧链/?v=旧包 一直停在旧缓存）
+			var baked="20261101151234";
+			function syncV(v, hard){
 				if(!v||v.charAt(0)==="$")return;
 				try{
 					var p=new URLSearchParams(location.search);
 					if(p.get("v")===v)return;
 					p.set("v",v);
-					history.replaceState(null,"",location.pathname+"?"+p.toString()+location.hash);
+					p.set("_", String(Date.now()));
+					var next=location.pathname+"?"+p.toString()+location.hash;
+					if(hard){
+						location.replace(next);
+						return;
+					}
+					history.replaceState(null,"",next);
 				}catch(e){}
 			}
-			if(baked&&baked.charAt(0)!=="$")syncV(baked);
+			if(baked&&baked.charAt(0)!=="$"){
+				try{
+					var cur=(new URLSearchParams(location.search)).get("v")||"";
+					if(cur && /^\d+$/.test(cur) && /^\d+$/.test(baked) && cur<baked){
+						var key="cxd_hard_"+baked;
+						if(!sessionStorage.getItem(key)){
+							sessionStorage.setItem(key,"1");
+							syncV(baked,true);
+							return;
+						}
+					}
+				}catch(e2){}
+				syncV(baked,false);
+			}
 			window.__chuxindiaoSyncV=syncV;
 		}();
 		</script>
@@ -356,9 +375,9 @@ body {
 		})();
 		</script>
 
-		<script src="index.js?v=20261101150846"></script>
+		<script src="index.js?v=20261101151234"></script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.wasm":37685705,"pack-20261101150846.pck":46592364},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"pack-20261101150846.pck"};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.wasm":37685705,"pack-20261101151234.pck":46597132},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"pack-20261101151234.pck"};
 const GODOT_THREADS_ENABLED = false;
 
 (function () {
@@ -702,19 +721,31 @@ const GODOT_THREADS_ENABLED = false;
 			j = newerMeta(j, pair[i]);
 		}
 		var after = function (switched) {
-			// 仅当新包确实可下载、且 HTML 过旧时才整页重载
+			// 新包可下载且（HTML baked 或地址栏 v）落后时，整页重载一次
 			if (switched && j && j.v) {
-				var bakedEl = document.documentElement.getAttribute('data-cxd-v') || '';
+				var bakedEl = '';
+				var urlV = '';
 				try {
 					var bakedMatch = (document.head && document.head.innerHTML || '').match(/baked="(\d+)"/);
 					if (bakedMatch) bakedEl = bakedMatch[1];
+					urlV = new URLSearchParams(location.search).get('v') || '';
 				} catch (e1) {}
-				if (bakedEl && String(j.v) !== String(bakedEl)) {
-					var key = 'cxd_reload_' + j.v;
+				var latest = String(j.v);
+				var staleHtml = bakedEl && latest !== String(bakedEl);
+				var staleUrl = urlV && /^\d+$/.test(urlV) && urlV < latest;
+				if (staleHtml || staleUrl) {
+					var key = 'cxd_reload_' + latest;
 					try {
 						if (!sessionStorage.getItem(key)) {
 							sessionStorage.setItem(key, '1');
-							location.replace(location.pathname + '?v=' + encodeURIComponent(j.v) + '&_=' + Date.now());
+							try {
+								if (window.caches && caches.keys) {
+									caches.keys().then(function (ks) {
+										ks.forEach(function (k) { caches.delete(k); });
+									});
+								}
+							} catch (e3) {}
+							location.replace(location.pathname + '?v=' + encodeURIComponent(latest) + '&_=' + Date.now());
 							return;
 						}
 					} catch (e2) {}
