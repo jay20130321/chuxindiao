@@ -7,7 +7,7 @@
 		<script>
 		!function(){
 			// 旧 ?v= 链经常卡在 CDN/浏览器缓存。开页立刻对齐最新包：落后就 location.replace。
-			var baked="20261101152304";
+			var baked="20261101152505";
 			function goLatest(v){
 				if(!v||String(v).charAt(0)==="$")return;
 				v=String(v);
@@ -42,28 +42,28 @@
 				return;
 			}
 			if(baked&&baked.charAt(0)!=="$")syncV(baked,false);
-			// 再问 version.json / GitHub 原文件，Pages CDN 落后时也能跳到真·最新
-			function pickV(a,b){
-				if(!a)return b; if(!b)return a;
-				return String(b)>String(a)?b:a;
-			}
+			// 只跟本站 version.json 硬跳；GitHub 原文件可能比 Pages CDN 新，
+			// 若强跳而 pack 还没上线会 404，表现为「进了码头却出不了钓」。
 			function readV(j){ return j&&j.v?String(j.v):""; }
-			function fetchV(url){
-				return fetch(url,{cache:"no-store"}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});
+			function packReady(v){
+				var pack="pack-"+v+".pck";
+				return fetch(pack+"?t="+Date.now(),{method:"HEAD",cache:"no-store"})
+					.then(function(r){return r.ok;})
+					.catch(function(){return false;});
 			}
-			Promise.all([
-				fetchV("version.json?t="+Date.now()),
-				fetchV("https://raw.githubusercontent.com/jay20130321/chuxindiao/main/version.json?t="+Date.now())
-			]).then(function(arr){
-				var latest=pickV(readV(arr[0]), readV(arr[1]));
-				latest=pickV(latest, baked&&baked.charAt(0)!=="$"?baked:"");
-				if(!latest||!/^\d+$/.test(latest))return;
-				var now="";
-				try{ now=(new URLSearchParams(location.search)).get("v")||""; }catch(e1){}
-				if(!now || now<latest){
-					goLatest(latest);
-				}
-			}).catch(function(){});
+			fetch("version.json?t="+Date.now(),{cache:"no-store"})
+				.then(function(r){return r.ok?r.json():null;})
+				.then(function(j){
+					var latest=readV(j);
+					latest=latest||(baked&&baked.charAt(0)!=="$"?baked:"");
+					if(!latest||!/^\d+$/.test(latest))return null;
+					var now="";
+					try{ now=(new URLSearchParams(location.search)).get("v")||""; }catch(e1){}
+					if(now && !(now<latest))return null;
+					return packReady(latest).then(function(ok){ return ok?latest:null; });
+				})
+				.then(function(latest){ if(latest) goLatest(latest); })
+				.catch(function(){});
 		}();
 		</script>
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -401,9 +401,9 @@ body {
 		})();
 		</script>
 
-		<script src="index.js?v=20261101152304"></script>
+		<script src="index.js?v=20261101152505"></script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.wasm":37685705,"pack-20261101152304.pck":46599404},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"pack-20261101152304.pck"};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.wasm":37685705,"pack-20261101152505.pck":46599692},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"pack-20261101152505.pck"};
 const GODOT_THREADS_ENABLED = false;
 
 (function () {
