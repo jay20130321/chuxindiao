@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>楚新钓 · 万钧江湖</title>
+  <meta name="description" content="楚新钓独立站：拉力垂钓、手机操控、世界聊天与好友同钓。" />
+  <style>
+    :root { --bg:#07141c; --fg:#e8f0f5; --accent:#d4a84b; --card:#0e2430; }
+    * { box-sizing: border-box; }
+    html, body { margin:0; height:100%; background:var(--bg); color:var(--fg);
+      font-family: "PingFang SC", "Noto Sans SC", system-ui, sans-serif; }
+    .wrap { min-height:100%; display:flex; flex-direction:column; }
+    header { padding:1rem 1.25rem; display:flex; flex-wrap:wrap; gap:.75rem; align-items:center;
+      justify-content:space-between; border-bottom:1px solid #1a3344; background:linear-gradient(180deg,#0c1e28,#07141c); }
+    header h1 { margin:0; font-size:1.25rem; letter-spacing:.04em; color:var(--accent); font-weight:600; }
+    header p { margin:0; opacity:.8; font-size:.85rem; }
+    .actions { display:flex; gap:.5rem; flex-wrap:wrap; }
+    a.btn, button.btn { appearance:none; border:0; cursor:pointer; text-decoration:none;
+      background:var(--accent); color:#1a1205; font-weight:700; padding:.55rem 1rem; border-radius:8px; font-size:.95rem; }
+    a.btn.ghost { background:transparent; color:var(--fg); border:1px solid #3a5566; }
+    main { flex:1; display:flex; flex-direction:column; }
+    #gameFrame { flex:1; width:100%; border:0; min-height:70vh; background:#000; }
+    footer { padding:.75rem 1.25rem; font-size:.75rem; opacity:.65; border-top:1px solid #1a3344; }
+    .note { max-width:720px; margin:0 auto; padding:1rem 1.25rem; color:#b7c6d0; font-size:.9rem; line-height:1.5; }
+    .share { max-width:720px; margin:0 auto 0.5rem; padding:0 1.25rem 1rem; display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
+    .share label { font-size:.85rem; color:var(--accent); white-space:nowrap; }
+    .share input { flex:1; min-width:180px; background:#0a1a22; border:1px solid #3a5566; color:var(--fg);
+      border-radius:8px; padding:.55rem .75rem; font-size:.85rem; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>楚新钓 · 万钧江湖</h1>
+        <p>独立站 · 手机/电脑 · 世界聊天 · 邀请好友同钓</p>
+      </div>
+      <div class="actions">
+        <a class="btn" href="./play/">立即开玩</a>
+        <a class="btn ghost" href="./play/" target="_blank" rel="noopener">新窗口</a>
+      </div>
+    </header>
+    <p class="note">网页版名称：<strong style="color:var(--accent)">楚新钓 · 万钧江湖</strong>。资源包约 12MB；若卡住请点「强制刷新」。进入后选手机/电脑布局，布局页会显示包号。</p>
+    <div class="share">
+      <label for="shareUrl">网页版网址</label>
+      <input id="shareUrl" type="text" readonly value="" />
+      <button type="button" class="btn" id="copyUrlBtn">复制网址</button>
+      <button type="button" class="btn ghost" id="hardRefreshBtn">强制刷新</button>
+    </div>
+    <main>
+      <iframe id="gameFrame" title="楚新钓游戏" src="about:blank" allow="autoplay; fullscreen; gamepad" allowfullscreen></iframe>
+    </main>
+    <footer>© 楚新钓独立站 · 非第三方游戏聚合平台</footer>
+  </div>
+  <script>
+    (function () {
+      var input = document.getElementById("shareUrl");
+      var btn = document.getElementById("copyUrlBtn");
+      var hardBtn = document.getElementById("hardRefreshBtn");
+      var frame = document.getElementById("gameFrame");
+      function playUrl(v) {
+        var q = "fresh=1&ok=1&_=" + Date.now();
+        if (v) q = "v=" + encodeURIComponent(v) + "&" + q;
+        return location.origin.replace(/\/$/, "") + "/play/?" + q;
+      }
+      function apply(v) {
+        var url = playUrl(v);
+        input.value = url;
+        frame.src = "./play/?" + url.split("?")[1];
+      }
+      apply("");
+      fetch("./version.json?t=" + Date.now(), { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (j) { if (j && j.v) apply(String(j.v)); })
+        .catch(function () {});
+      function copy() {
+        input.focus();
+        input.select();
+        var ok = false;
+        var url = input.value;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(url).then(function () { ok = true; }).catch(function () {});
+        }
+        try { ok = document.execCommand("copy") || ok; } catch (e) {}
+        btn.textContent = ok || document.getSelection().toString() === url ? "已复制" : "请手动复制";
+        setTimeout(function () { btn.textContent = "复制网址"; }, 1600);
+      }
+      btn.addEventListener("click", copy);
+      hardBtn.addEventListener("click", function () {
+        fetch("./version.json?t=" + Date.now(), { cache: "no-store" })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (j) {
+            var v = j && j.v ? String(j.v) : "";
+            apply(v);
+            location.replace(playUrl(v));
+          })
+          .catch(function () { location.replace(playUrl("")); });
+      });
+      input.addEventListener("focus", function () { input.select(); });
+    })();
+  </script>
+</body>
+</html>

@@ -6,16 +6,17 @@
 		<meta charset="utf-8">
 		<script>
 		!function(){
-			// 旧 ?v= 链经常卡在 CDN/浏览器缓存。开页立刻对齐最新包：落后就 location.replace。
-			var baked="20261107144055";
-			function goLatest(v){
+			// 旧 ?v= / 旧 index.html 常被 CDN 卡 10 分钟。version.json 更新就硬跳，无视 fresh。
+			var baked="20261107144317";
+			function goLatest(v, force){
 				if(!v||String(v).charAt(0)==="$")return;
 				v=String(v);
 				try{
 					var p=new URLSearchParams(location.search);
-					if(p.get("v")===v && p.get("fresh")==="1")return;
+					if(!force && p.get("v")===v && p.get("fresh")==="1" && p.get("ok")==="1")return;
 					p.set("v",v);
 					p.set("fresh","1");
+					p.set("ok","1");
 					p.set("_",String(Date.now()));
 					location.replace(location.pathname+"?"+p.toString()+location.hash);
 				}catch(e){}
@@ -26,24 +27,23 @@
 				try{
 					var p=new URLSearchParams(location.search);
 					if(p.get("v")===v){
-						if(hard)goLatest(v);
+						if(hard)goLatest(v,true);
 						return;
 					}
-					if(hard){ goLatest(v); return; }
+					if(hard){ goLatest(v,true); return; }
 					p.set("v",v);
 					history.replaceState(null,"",location.pathname+"?"+p.toString()+location.hash);
 				}catch(e){}
 			}
 			window.__chuxindiaoSyncV=syncV;
+			window.__chuxindiaoBaked=baked;
 			var cur="";
 			try{ cur=(new URLSearchParams(location.search)).get("v")||""; }catch(e0){}
 			if(baked&&baked.charAt(0)!=="$" && cur && /^\d+$/.test(cur) && cur<baked){
-				goLatest(baked);
+				goLatest(baked,true);
 				return;
 			}
 			if(baked&&baked.charAt(0)!=="$")syncV(baked,false);
-			// 只跟本站 version.json 硬跳；GitHub 原文件可能比 Pages CDN 新，
-			// 若强跳而 pack 还没上线会 404，表现为「进了码头却出不了钓」。
 			function readV(j){ return j&&j.v?String(j.v):""; }
 			function packReady(v){
 				var pack="pack-"+v+".pck";
@@ -51,19 +51,25 @@
 					.then(function(r){return r.ok;})
 					.catch(function(){return false;});
 			}
-			fetch("version.json?t="+Date.now(),{cache:"no-store"})
-				.then(function(r){return r.ok?r.json():null;})
-				.then(function(j){
-					var latest=readV(j);
-					latest=latest||(baked&&baked.charAt(0)!=="$"?baked:"");
-					if(!latest||!/^\d+$/.test(latest))return null;
-					var now="";
-					try{ now=(new URLSearchParams(location.search)).get("v")||""; }catch(e1){}
-					if(now && !(now<latest))return null;
-					return packReady(latest).then(function(ok){ return ok?latest:null; });
-				})
-				.then(function(latest){ if(latest) goLatest(latest); })
-				.catch(function(){});
+			function pickNewer(a,b){
+				if(!a)return b||"";
+				if(!b)return a;
+				return a>=b?a:b;
+			}
+			Promise.all([
+				fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
+				fetch("play/version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})
+			]).then(function(arr){
+				var latest=pickNewer(readV(arr[0]), readV(arr[1]));
+				latest=latest||(baked&&baked.charAt(0)!=="$"?baked:"");
+				if(!latest||!/^\d+$/.test(latest))return null;
+				var now="";
+				try{ now=(new URLSearchParams(location.search)).get("v")||""; }catch(e1){}
+				// URL 旧、或 HTML 本身是旧 baked，都硬跳
+				var need=(!now)||(now<latest)||(baked&&baked.charAt(0)!=="$"&&baked<latest);
+				if(!need)return null;
+				return packReady(latest).then(function(ok){ return ok?latest:null; });
+			}).then(function(latest){ if(latest) goLatest(latest,true); }).catch(function(){});
 		}();
 		</script>
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -401,9 +407,9 @@ body {
 		})();
 		</script>
 
-		<script src="index.js?v=20261107144055"></script>
+		<script src="index.js?v=20261107144317"></script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.wasm":37685705,"pack-20261107144055.pck":12606728},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"pack-20261107144055.pck"};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.wasm":37685705,"pack-20261107144317.pck":12607112},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"pack-20261107144317.pck"};
 const GODOT_THREADS_ENABLED = false;
 
 (function () {
