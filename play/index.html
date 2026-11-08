@@ -6,18 +6,43 @@
 		<meta charset="utf-8">
 		<script>
 		!function(){
-			// 旧 ?v= / 旧 index.html 常被 CDN 卡 10 分钟。version.json 更新就硬跳，无视 fresh。
-			var baked="20261107172705";
+			// 旧 ?v= / 旧 index.html 常被 CDN 卡 10 分钟。version.json 更新就硬跳；purge=1 清缓存。
+			var baked="20261107173057";
+			function wipeCaches(){
+				try{
+					if(window.caches&&caches.keys){
+						caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});
+					}
+				}catch(e0){}
+				try{
+					if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations){
+						navigator.serviceWorker.getRegistrations().then(function(rs){
+							rs.forEach(function(r){r.unregister();});
+						});
+					}
+				}catch(e1){}
+				try{
+					var kill=[];
+					for(var i=0;i<sessionStorage.length;i++){
+						var k=sessionStorage.key(i);
+						if(k&&k.indexOf("cxd_reload_")==0)kill.push(k);
+					}
+					kill.forEach(function(k){sessionStorage.removeItem(k);});
+				}catch(e2){}
+			}
 			function goLatest(v, force){
 				if(!v||String(v).charAt(0)==="$")return;
 				v=String(v);
 				try{
 					var p=new URLSearchParams(location.search);
-					if(!force && p.get("v")===v && p.get("fresh")==="1" && p.get("ok")==="1")return;
+					var purge=p.get("purge")==="1";
+					if(purge)wipeCaches();
+					if(!force && !purge && p.get("v")===v && p.get("fresh")==="1" && p.get("ok")==="1")return;
 					p.set("v",v);
 					p.set("fresh","1");
 					p.set("ok","1");
 					p.set("_",String(Date.now()));
+					p.delete("purge");
 					location.replace(location.pathname+"?"+p.toString()+location.hash);
 				}catch(e){}
 			}
@@ -37,8 +62,14 @@
 			}
 			window.__chuxindiaoSyncV=syncV;
 			window.__chuxindiaoBaked=baked;
-			var cur="";
-			try{ cur=(new URLSearchParams(location.search)).get("v")||""; }catch(e0){}
+			window.__chuxindiaoWipeCaches=wipeCaches;
+			var cur="", wantPurge=false;
+			try{
+				var sp0=new URLSearchParams(location.search);
+				cur=sp0.get("v")||"";
+				wantPurge=sp0.get("purge")==="1";
+			}catch(e0){}
+			if(wantPurge)wipeCaches();
 			if(baked&&baked.charAt(0)!=="$" && cur && /^\d+$/.test(cur) && cur<baked){
 				goLatest(baked,true);
 				return;
@@ -56,17 +87,24 @@
 				if(!b)return a;
 				return a>=b?a:b;
 			}
+			function fetchVer(url){
+				return fetch(url,{cache:"no-store"}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});
+			}
+			// Pages CDN 可卡旧 version.json；同时问 GitHub 原文件
 			Promise.all([
-				fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
-				fetch("play/version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})
+				fetchVer("version.json?t="+Date.now()),
+				fetchVer("play/version.json?t="+Date.now()),
+				fetchVer("https://raw.githubusercontent.com/jay20130321/chuxindiao/main/play/version.json?t="+Date.now()),
+				fetchVer("https://raw.githubusercontent.com/jay20130321/chuxindiao/main/version.json?t="+Date.now())
 			]).then(function(arr){
-				var latest=pickNewer(readV(arr[0]), readV(arr[1]));
+				var latest="";
+				for(var i=0;i<arr.length;i++)latest=pickNewer(latest,readV(arr[i]));
 				latest=latest||(baked&&baked.charAt(0)!=="$"?baked:"");
 				if(!latest||!/^\d+$/.test(latest))return null;
 				var now="";
 				try{ now=(new URLSearchParams(location.search)).get("v")||""; }catch(e1){}
-				// URL 旧、或 HTML 本身是旧 baked，都硬跳
-				var need=(!now)||(now<latest)||(baked&&baked.charAt(0)!=="$"&&baked<latest);
+				// 只在 URL 包号偏旧时硬跳；HTML 偏旧但 URL 已新时交给后面 applyLatestPack 换包，避免死循环
+				var need=(!now)||(now<latest)||wantPurge;
 				if(!need)return null;
 				return packReady(latest).then(function(ok){ return ok?latest:null; });
 			}).then(function(latest){ if(latest) goLatest(latest,true); }).catch(function(){});
@@ -407,9 +445,9 @@ body {
 		})();
 		</script>
 
-		<script src="index.js?v=20261107172705"></script>
+		<script src="index.js?v=20261107173057"></script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.wasm":37685705,"pack-20261107172705.pck":13144548},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"pack-20261107172705.pck"};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.wasm":37685705,"pack-20261107173057.pck":13144564},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4,"mainPack":"pack-20261107173057.pck"};
 const GODOT_THREADS_ENABLED = false;
 
 (function () {
@@ -763,24 +801,24 @@ const GODOT_THREADS_ENABLED = false;
 						urlV = new URLSearchParams(location.search).get('v') || '';
 					} catch (e1) {}
 					var latest = String(j.v);
-					var staleHtml = bakedEl && latest !== String(bakedEl);
-					var staleUrl = urlV && /^\d+$/.test(urlV) && urlV < latest;
-					if (staleHtml || staleUrl) {
+					// 仅 URL 包号落后才整页硬跳；HTML 旧但 URL 已新时只靠 mainPack 换包（Pages 缓存 HTML 时硬跳无效）
+					var staleUrl = (!urlV) || (/^\d+$/.test(urlV) && urlV < latest);
+					if (staleUrl) {
 						var key = 'cxd_reload_' + latest;
 						try {
-							if (!sessionStorage.getItem(key)) {
-								sessionStorage.setItem(key, '1');
-								try {
-									if (window.caches && caches.keys) {
-										caches.keys().then(function (ks) {
-											ks.forEach(function (k) { caches.delete(k); });
-										});
-									}
-								} catch (e3) {}
+							var n = parseInt(sessionStorage.getItem(key) || '0', 10) || 0;
+							if (n < 2) {
+								sessionStorage.setItem(key, String(n + 1));
+								if (typeof window.__chuxindiaoWipeCaches === 'function') {
+									window.__chuxindiaoWipeCaches();
+								}
 								location.replace(location.pathname + '?v=' + encodeURIComponent(latest) + '&fresh=1&_=' + Date.now());
 								return;
 							}
 						} catch (e2) {}
+					}
+					if (loadPct && j.pack) {
+						loadPct.textContent = '资源包 ' + String(j.pack).replace(/^pack-/, '').replace(/\.pck$/, '') + (bakedEl && bakedEl !== latest ? '（已换新包）' : '');
 					}
 				}
 				bootEngine();
