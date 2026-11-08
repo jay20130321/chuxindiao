@@ -2,9 +2,27 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>楚新钓 · 万钧江湖</title>
   <meta name="description" content="楚新钓独立站：拉力垂钓、手机操控、世界聊天与好友同钓。" />
+  <script>
+  // 根目录曾误放整包游戏；带旧 ?v= 书签的人直接送进 /play/ 并清缓存
+  !function () {
+    try {
+      var p = new URLSearchParams(location.search);
+      var goPlay = p.has("v") || p.get("fresh") === "1" || p.get("ok") === "1" || p.get("purge") === "1";
+      if (!goPlay) return;
+      var q = new URLSearchParams();
+      if (p.get("v")) q.set("v", p.get("v"));
+      q.set("fresh", "1");
+      q.set("purge", "1");
+      q.set("_", String(Date.now()));
+      location.replace((location.pathname.replace(/\/?$/, "/") + "play/?" + q.toString()).replace("/play/play/", "/play/"));
+    } catch (e) {}
+  }();
+  </script>
   <style>
     :root { --bg:#07141c; --fg:#e8f0f5; --accent:#d4a84b; --card:#0e2430; }
     * { box-sizing: border-box; }
@@ -37,11 +55,11 @@
         <p>独立站 · 手机/电脑 · 世界聊天 · 邀请好友同钓</p>
       </div>
       <div class="actions">
-        <a class="btn" href="./play/">立即开玩</a>
-        <a class="btn ghost" href="./play/" target="_blank" rel="noopener">新窗口</a>
+        <a class="btn" id="playBtn" href="./play/?fresh=1&purge=1">立即开玩</a>
+        <a class="btn ghost" href="./play/?fresh=1&purge=1" target="_blank" rel="noopener">新窗口</a>
       </div>
     </header>
-    <p class="note">网页版名称：<strong style="color:var(--accent)">楚新钓 · 万钧江湖</strong>。资源包约 12MB；若卡住请点「强制刷新」。进入后选手机/电脑布局，布局页会显示包号。</p>
+    <p class="note">请从 <strong style="color:var(--accent)">/play/</strong> 进入游戏。若卡住请点「强制刷新」。布局页会显示包号，需为最新号。</p>
     <div class="share">
       <label for="shareUrl">网页版网址</label>
       <input id="shareUrl" type="text" readonly value="" />
@@ -59,21 +77,35 @@
       var btn = document.getElementById("copyUrlBtn");
       var hardBtn = document.getElementById("hardRefreshBtn");
       var frame = document.getElementById("gameFrame");
+      var playBtn = document.getElementById("playBtn");
       function playUrl(v) {
-        var q = "fresh=1&ok=1&_=" + Date.now();
+        var q = "fresh=1&purge=1&ok=1&_=" + Date.now();
         if (v) q = "v=" + encodeURIComponent(v) + "&" + q;
-        return location.origin.replace(/\/$/, "") + "/play/?" + q;
+        return location.origin.replace(/\/$/, "") + location.pathname.replace(/\/?$/, "/") + "play/?" + q;
       }
       function apply(v) {
         var url = playUrl(v);
         input.value = url;
-        frame.src = "./play/?" + url.split("?")[1];
+        var qs = url.split("?")[1] || "fresh=1&purge=1";
+        frame.src = "./play/?" + qs;
+        if (playBtn) playBtn.href = "./play/?" + qs;
       }
       apply("");
-      fetch("./version.json?t=" + Date.now(), { cache: "no-store" })
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (j) { if (j && j.v) apply(String(j.v)); })
-        .catch(function () {});
+      function pickV(arr) {
+        var best = "";
+        arr.forEach(function (j) {
+          if (j && j.v && String(j.v) > best) best = String(j.v);
+        });
+        return best;
+      }
+      Promise.all([
+        fetch("./version.json?t=" + Date.now(), { cache: "no-store" }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
+        fetch("./play/version.json?t=" + Date.now(), { cache: "no-store" }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
+        fetch("https://raw.githubusercontent.com/jay20130321/chuxindiao/main/play/version.json?t=" + Date.now(), { cache: "no-store" }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; })
+      ]).then(function (arr) {
+        var v = pickV(arr);
+        if (v) apply(v);
+      });
       function copy() {
         input.focus();
         input.select();
@@ -88,14 +120,13 @@
       }
       btn.addEventListener("click", copy);
       hardBtn.addEventListener("click", function () {
-        fetch("./version.json?t=" + Date.now(), { cache: "no-store" })
-          .then(function (r) { return r.ok ? r.json() : null; })
-          .then(function (j) {
-            var v = j && j.v ? String(j.v) : "";
-            apply(v);
-            location.replace(playUrl(v));
-          })
-          .catch(function () { location.replace(playUrl("")); });
+        Promise.all([
+          fetch("./play/version.json?t=" + Date.now(), { cache: "no-store" }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
+          fetch("https://raw.githubusercontent.com/jay20130321/chuxindiao/main/play/version.json?t=" + Date.now(), { cache: "no-store" }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; })
+        ]).then(function (arr) {
+          var v = pickV(arr);
+          location.replace(playUrl(v));
+        }).catch(function () { location.replace(playUrl("")); });
       });
       input.addEventListener("focus", function () { input.select(); });
     })();
